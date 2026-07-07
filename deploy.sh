@@ -1,19 +1,29 @@
 #!/usr/bin/env bash
 #
-# Build + package the standalone output and restart the service.
+# Build + package the standalone output and (re)start the pm2 process.
 # Run from the project root, as the app user, on the target VPS.
 # See DEPLOY.md for first-time setup.
 #
 # Usage:
 #   ./deploy.sh                # full deploy: install, build, migrate, restart
 #   SKIP_INSTALL=1 ./deploy.sh # skip `npm ci` (deps unchanged)
-#   SKIP_RESTART=1 ./deploy.sh # build only, don't restart the service
+#   SKIP_RESTART=1 ./deploy.sh # build only, don't (re)start the process
 #
 set -euo pipefail
 
-SERVICE_NAME="${SERVICE_NAME:-white-party}"
+APP_NAME="${APP_NAME:-white-party}"
 
 cd "$(dirname "$0")"
+
+# Load .env into the environment so the pm2 process (and prisma) see PORT,
+# HOSTNAME, DATABASE_URL, etc. Prisma auto-reads .env, but the standalone
+# server needs them in its actual environment — pm2 captures them below.
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
 
 echo "==> Installing dependencies"
 if [ "${SKIP_INSTALL:-0}" != "1" ]; then
@@ -39,9 +49,15 @@ echo "==> Applying database migrations"
 npm run db:deploy
 
 if [ "${SKIP_RESTART:-0}" != "1" ]; then
-  echo "==> Restarting service: ${SERVICE_NAME}"
-  sudo systemctl restart "${SERVICE_NAME}"
-  sudo systemctl --no-pager --lines=0 status "${SERVICE_NAME}" || true
+  if pm2 describe "${APP_NAME}" > /dev/null 2>&1; then
+    echo "==> Reloading pm2 process: ${APP_NAME}"
+    pm2 reload "${APP_NAME}" --update-env
+  else
+    echo "==> Starting pm2 process: ${APP_NAME}"
+    pm2 start .next/standalone/server.js --name "${APP_NAME}" --update-env
+  fi
+  pm2 save
+  pm2 --no-color status "${APP_NAME}" || true
 else
   echo "==> Skipping restart (SKIP_RESTART=1)"
 fi

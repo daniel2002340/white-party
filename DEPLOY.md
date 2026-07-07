@@ -2,19 +2,23 @@
 
 This guide takes a **fresh Ubuntu/Debian VPS** to a running, HTTPS site. The app
 is a Next.js standalone server (`node .next/standalone/server.js`) managed by
-systemd, behind a reverse proxy (Caddy or nginx) that terminates TLS.
+**pm2**, behind a reverse proxy (Caddy or nginx) that terminates TLS.
 
 Conventions used below (adjust to taste, but keep them consistent everywhere):
 
 | Thing            | Value                                   |
 | ---------------- | --------------------------------------- |
-| App user         | `whiteparty` (non-root, no login shell) |
+| App user         | `whiteparty` (non-root)                  |
 | App directory    | `/srv/white-party`                      |
 | SQLite database  | `/srv/white-party/data/app.db`          |
 | Backups          | `/srv/white-party/backups`              |
-| systemd service  | `white-party`                           |
-| App listens on   | `127.0.0.1:3000` (proxy only)           |
+| pm2 app name     | `white-party`                           |
+| App listens on   | `127.0.0.1:6353` (proxy only)           |
 | Public domain    | `feest.example.nl` (replace with yours) |
+
+> The app user needs a login shell for pm2 (so `sudo -iu whiteparty` works and
+> pm2 can install its own boot service). If you created it with `--shell
+> /usr/sbin/nologin`, switch it: `sudo usermod --shell /bin/bash whiteparty`.
 
 > **Build on the target VPS.** `sharp`, the Prisma query engine, and `argon2`
 > ship **platform-specific native binaries**. Never copy a build (or
@@ -37,9 +41,9 @@ Conventions used below (adjust to taste, but keep them consistent everywhere):
 
 ## 1. Install system packages
 
-Install Node.js 22 LTS from NodeSource (system-wide, so systemd finds
-`/usr/bin/node`), plus git, sqlite3 (for backups) and build tooling (fallback
-for any native module without a prebuilt binary):
+Install Node.js 22 LTS from NodeSource (system-wide, so pm2, cron and the boot
+service all find `/usr/bin/node` on `PATH`), plus git, sqlite3 (for backups) and
+build tooling (fallback for any native module without a prebuilt binary):
 
 ```bash
 sudo apt-get update
@@ -56,21 +60,32 @@ npm -v
 npm ships with Node; this project uses **npm** (there is a committed
 `package-lock.json`). pnpm/yarn are not required.
 
-> **nvm alternative:** you can install Node with nvm instead, but systemd runs
-> without your shell's PATH, so the service file's `ExecStart` must use the
-> **absolute** node path (e.g. `/home/whiteparty/.nvm/versions/node/v22.13.1/bin/node`).
-> Find it with `which node`. Using the system Node above keeps `/usr/bin/node`
-> valid and is simpler — recommended.
+Install **pm2** globally (the process manager that keeps the app running and
+restarts it on boot):
+
+```bash
+sudo npm install -g pm2
+pm2 -v
+```
+
+> **nvm alternative:** you can install Node with nvm instead. pm2 then runs
+> under that Node automatically (it uses whichever `node` started it), so no
+> absolute paths are needed — but install pm2 with that same Node
+> (`npm install -g pm2`, no sudo), and run `pm2 startup` as the app user so the
+> boot service points at the nvm Node. Using the system Node above is simpler.
 
 ---
 
 ## 2. Create the app user and directories
 
 ```bash
-sudo useradd --system --create-home --shell /usr/sbin/nologin whiteparty
+sudo useradd --system --create-home --shell /bin/bash whiteparty
 sudo mkdir -p /srv/white-party
 sudo chown whiteparty:whiteparty /srv/white-party
 ```
+
+(pm2 needs a real shell for the app user, so use `/bin/bash` rather than
+`nologin`.)
 
 ---
 
@@ -133,14 +148,18 @@ sudo -u whiteparty mkdir -p data backups
 sudo -u whiteparty nano .env    # fill in the values below
 ```
 
-Fill in `/srv/white-party/.env`. **Write plain `KEY=value` lines** (no
-surrounding quotes — the file is read by both Next and systemd's
-`EnvironmentFile=`; modern systemd, v240+, is fine with unquoted values that
-contain spaces such as `SMTP_FROM`):
+Fill in `/srv/white-party/.env`. `deploy.sh` **sources** this file (so pm2 picks
+up `PORT`/`DATABASE_URL`/etc.), so **quote any value that contains a space or
+shell metacharacters** — in practice that's `SMTP_FROM`. Values without spaces
+(paths, keys, URLs) can be left unquoted.
 
 ```ini
 # Absolute path — see the note below. Prefix with file:
 DATABASE_URL=file:/srv/white-party/data/app.db
+
+# Port/host the standalone server listens on (reverse proxy targets this).
+PORT=6353
+HOSTNAME=127.0.0.1
 
 # 32+ byte random secret. Generate with: openssl rand -base64 32
 SESSION_SECRET=<paste output of: openssl rand -base64 32>
@@ -153,7 +172,7 @@ SMTP_HOST=smtp.your-provider.com
 SMTP_PORT=587
 SMTP_USER=your-smtp-username
 SMTP_PASS=your-smtp-password
-SMTP_FROM=White Party <noreply@feest.example.nl>
+SMTP_FROM="White Party <noreply@feest.example.nl>"
 
 # Cloudflare R2 (from §3)
 R2_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com
@@ -172,6 +191,10 @@ Notes on individual variables:
   SQLite paths resolve relative to `schema.prisma`, which in the standalone
   build lives deep under `node_modules/.prisma/client/`. An absolute path makes
   the Prisma CLI (migrate/seed) and the running server agree on the same file.
+- **`PORT` / `HOSTNAME`** — the standalone server reads these from its
+  environment. `HOSTNAME=127.0.0.1` binds it to localhost so only the reverse
+  proxy can reach it. Change `PORT` to whatever your proxy targets (this guide
+  uses `6353`).
 - **`SESSION_SECRET`** — generate with `openssl rand -base64 32`. (Sessions
   currently use random tokens stored in the database, so this value isn't read
   by the app yet; it's documented in `.env.example` and set as a defensive
@@ -220,50 +243,38 @@ without it the site loads unstyled (missing CSS/JS).
 
 ---
 
-## 7. systemd service
+## 7. Start with pm2
 
-Create `/etc/systemd/system/white-party.service`:
+Run all of this **as the app user** (`sudo -iu whiteparty`, then
+`cd /srv/white-party`). pm2 keeps the app running, restarts it on crash, and —
+via `pm2 startup` + `pm2 save` — brings it back after a reboot.
 
-```ini
-[Unit]
-Description=White Party (Next.js standalone)
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=whiteparty
-Group=whiteparty
-WorkingDirectory=/srv/white-party
-EnvironmentFile=/srv/white-party/.env
-Environment=NODE_ENV=production
-Environment=PORT=3000
-Environment=HOSTNAME=127.0.0.1
-ExecStart=/usr/bin/node .next/standalone/server.js
-Restart=always
-RestartSec=5
-
-# Hardening (safe with outbound SMTP/R2 — network stays available)
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=full
-ProtectHome=true
-ReadWritePaths=/srv/white-party/data /srv/white-party/backups
-
-[Install]
-WantedBy=multi-user.target
-```
-
-`HOSTNAME=127.0.0.1` binds the app to localhost only — it's reachable solely
-through the reverse proxy. Enable and start:
+The `deploy.sh` script (§9) already starts/reloads the pm2 process for you, so
+the normal flow is just to run it. To start it manually the first time:
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now white-party
-sudo systemctl status white-party        # should be active (running)
-curl -s http://127.0.0.1:3000/api/health # {"ok":true,"db":true}
-journalctl -u white-party -f             # live logs
+cd /srv/white-party
+# Load .env so the process gets PORT, HOSTNAME, DATABASE_URL, etc.
+set -a; . ./.env; set +a
+export NODE_ENV=production
+
+pm2 start .next/standalone/server.js --name white-party --update-env
+pm2 save            # remember this process list across reboots
+pm2 startup         # prints ONE sudo command — copy/paste and run it
 ```
+
+`pm2 startup` prints a `sudo env PATH=… pm2 startup systemd -u whiteparty …`
+command; run exactly what it prints (it registers a boot service that resurrects
+the saved process list). Then verify:
+
+```bash
+pm2 status                                  # white-party should be "online"
+pm2 logs white-party --lines 50             # live logs
+curl -s http://127.0.0.1:6353/api/health    # {"ok":true,"db":true}
+```
+
+Handy pm2 commands: `pm2 restart white-party`, `pm2 reload white-party`
+(zero-downtime), `pm2 stop white-party`, `pm2 logs white-party`.
 
 ---
 
@@ -287,7 +298,7 @@ Replace `/etc/caddy/Caddyfile` with:
 ```caddy
 feest.example.nl {
     encode zstd gzip
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:6353
 }
 ```
 
@@ -316,7 +327,7 @@ server {
     server_name feest.example.nl;
 
     location / {
-        proxy_pass http://127.0.0.1:3000;
+        proxy_pass http://127.0.0.1:6353;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -339,22 +350,20 @@ sudo certbot --nginx -d feest.example.nl   # issues the cert + adds the 443 bloc
 ## 9. The deploy script
 
 `deploy.sh` (in the repo root) runs install → build → static-copy → migrate →
-restart. Use it for the first deploy's build steps and for all updates:
+pm2 (re)start. Run it **as the app user** (it uses that user's pm2):
 
 ```bash
+sudo -iu whiteparty
 cd /srv/white-party
-sudo -u whiteparty ./deploy.sh
+./deploy.sh
 ```
 
-It runs `sudo systemctl restart white-party` at the end, so allow the
-`whiteparty` user that one command without a password:
+It sources `.env`, then starts the pm2 process on the first run and
+`pm2 reload`s it (zero-downtime) on subsequent runs, and calls `pm2 save`. No
+sudo/systemctl needed — pm2 runs entirely under the app user.
 
-```bash
-echo 'whiteparty ALL=(root) NOPASSWD: /usr/bin/systemctl restart white-party' | sudo tee /etc/sudoers.d/white-party-deploy
-sudo chmod 440 /etc/sudoers.d/white-party-deploy
-```
-
-(Or run `./deploy.sh` with `SKIP_RESTART=1` and restart the service yourself.)
+(Run `./deploy.sh` with `SKIP_RESTART=1` to build without touching the running
+process. Override the pm2 app name with `APP_NAME=... ./deploy.sh`.)
 
 ---
 
@@ -388,13 +397,13 @@ Add this line (runs 03:00 daily; `\%` escapes `%` for cron):
 0 3 * * * cd /srv/white-party && /usr/bin/sqlite3 data/app.db ".backup 'backups/app-$(date +\%F).db'" && /usr/bin/find backups -name 'app-*.db' -mtime +14 -delete
 ```
 
-Restore is just copying a dated file back to `data/app.db` while the service is
-stopped:
+Restore is just copying a dated file back to `data/app.db` while the app is
+stopped (run as the `whiteparty` user):
 
 ```bash
-sudo systemctl stop white-party
-sudo -u whiteparty cp /srv/white-party/backups/app-2026-07-01.db /srv/white-party/data/app.db
-sudo systemctl start white-party
+pm2 stop white-party
+cp /srv/white-party/backups/app-2026-07-01.db /srv/white-party/data/app.db
+pm2 start white-party
 ```
 
 Consider shipping the `backups/` files off-box (e.g. `rclone` to R2 or another
@@ -405,16 +414,17 @@ provider) so a lost VPS doesn't lose the database.
 ## 12. Updating to a new version
 
 ```bash
+sudo -iu whiteparty
 cd /srv/white-party
-sudo -u whiteparty git pull
-sudo -u whiteparty ./deploy.sh      # npm ci, build, static copy, migrate, restart
+git pull
+./deploy.sh      # npm ci, build, static copy, migrate, pm2 reload
 ```
 
 `./deploy.sh` runs `npm run db:deploy` (applies any new migrations; a no-op if
 none). It does **not** re-seed. Watch it come back up:
 
 ```bash
-journalctl -u white-party -f
+pm2 logs white-party
 curl -s https://feest.example.nl/api/health
 ```
 
@@ -430,16 +440,23 @@ curl -s https://feest.example.nl/api/health
   (`sudo -u whiteparty ./deploy.sh`); don't copy `node_modules`/`.next` from
   another OS.
 - **DB errors / "unable to open database file"** — check `DATABASE_URL` is an
-  **absolute** `file:/srv/white-party/data/app.db`, that `data/` exists and is
-  owned by `whiteparty`, and that systemd `ReadWritePaths` includes it.
+  **absolute** `file:/srv/white-party/data/app.db`, and that `data/` exists and
+  is owned by the pm2 app user (`whiteparty`).
 - **Login always fails right after deploy** — cookies are `Secure`; you must be
   on `https://` (via the proxy), not hitting `http://` or the raw
-  `127.0.0.1:3000` directly.
+  `127.0.0.1:6353` directly.
 - **Everyone shares one rate-limit bucket / wrong client IPs** — the proxy isn't
   forwarding `X-Forwarded-For` (Caddy does by default; check the nginx block).
-- **Emails not arriving** — verify SMTP vars; check `journalctl -u white-party`
-  for send errors. The admin "create user" flow shows the temporary password
+- **Emails not arriving** — verify SMTP vars; check `pm2 logs white-party` for
+  send errors. The admin "create user" flow shows the temporary password
   on-screen when a send fails, as a fallback.
-- **Env var not picked up** — `EnvironmentFile` values wrapped in quotes on old
-  systemd, or a missing `sudo systemctl daemon-reload` after editing the unit.
-  Restart the service after changing `.env`.
+- **Env var not picked up** — pm2 caches the environment from when the process
+  was started. After editing `.env`, re-run `./deploy.sh` (it re-sources `.env`
+  and reloads with `--update-env`), or manually:
+  `set -a; . ./.env; set +a; pm2 restart white-party --update-env`. Also make
+  sure values with spaces (e.g. `SMTP_FROM`) are **quoted**, since `deploy.sh`
+  sources the file.
+- **`pm2: command not found` in `deploy.sh` / cron** — pm2 is a global npm
+  binary; ensure it's on the app user's `PATH` (installed with the same Node,
+  `sudo -iu whiteparty` for a login shell). After a reboot, `pm2 status` should
+  show the app already `online` if you ran the `pm2 startup` command.

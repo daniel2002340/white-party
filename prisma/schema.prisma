@@ -1,0 +1,112 @@
+// Prisma schema — SQLite. See CLAUDE.md for the fixed architecture decisions.
+// Note: SQLite has no native Prisma enums, so enum-like fields are stored as
+// String with the allowed values documented inline and mirrored as typed
+// constants in lib/enums.ts.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique // always stored lowercase
+  name               String?
+  role               String   @default("GUEST") // "ADMIN" | "GUEST"
+  // Null until the user sets a password via /wachtwoord-instellen.
+  passwordHash       String?
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  sessions Session[]
+  rsvps    Rsvp[]
+  comments Comment[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique // random 32+ byte hex, stored in the "session" cookie
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Edition {
+  id           String   @id @default(cuid())
+  title        String
+  slug         String   @unique
+  eventDate    DateTime
+  location     String?
+  // Invite content: the admin-authored markdown source (for editing) and the
+  // sanitized HTML render (for display). inviteHtml is what guests see.
+  inviteMarkdown String?
+  inviteHtml   String? // rich invite/info text, stored as sanitized HTML
+  status       String   @default("DRAFT") // "DRAFT" | "PUBLISHED" | "ARCHIVED"
+  coverPhotoId String? // references a Photo.id; not a FK to avoid a cycle
+  lastInviteSentAt DateTime? // when the invite mailing was last sent
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  photos   Photo[]
+  rsvps    Rsvp[]
+  comments Comment[]
+}
+
+model Photo {
+  id         String   @id @default(cuid())
+  editionId  String
+  edition    Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  r2Key      String // original upload
+  r2KeyWeb   String // processed web-sized derivative
+  r2KeyThumb String // processed thumbnail derivative
+  width      Int
+  height     Int
+  sizeBytes  Int
+  sortOrder  Int      @default(0)
+  status     String   @default("UPLOADING") // "UPLOADING" | "PROCESSING" | "READY" | "FAILED"
+  createdAt  DateTime @default(now())
+
+  comments Comment[]
+
+  @@index([editionId])
+}
+
+model Rsvp {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  editionId  String
+  edition    Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  attending  Boolean
+  guestCount Int      @default(0)
+  note       String?
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, editionId])
+  @@index([editionId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  body      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  editionId String
+  edition   Edition  @relation(fields: [editionId], references: [id], onDelete: Cascade)
+  photoId   String? // null = edition-level comment; set = a comment on a photo
+  photo     Photo?   @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([editionId, photoId, createdAt])
+  @@index([userId])
+  @@index([photoId])
+}

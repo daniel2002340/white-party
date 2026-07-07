@@ -1,0 +1,163 @@
+@import "tailwindcss";
+
+/*
+ * "White Party" design system — bright, elegant, editorial.
+ * Crisp warm white, black ink text, champagne-gold hairline details.
+ * Think engraved fashion invitation, not SaaS dashboard.
+ * Fonts are wired up in app/layout.tsx via next/font (--font-fraunces / --font-inter).
+ */
+@theme {
+  /* Surfaces */
+  --color-background: #fafaf7; /* warm white page */
+  --color-surface: #ffffff; /* cards / raised surfaces */
+  --color-border: #e9e8e3; /* hairline rules & card borders */
+  --color-border-strong: #d9d8d2; /* secondary button border */
+
+  /* Text */
+  --color-foreground: #1b1b1b; /* primary ink */
+  --color-secondary: #5a5a5f; /* secondary text */
+  --color-muted: #98989d; /* muted text */
+
+  /* Ink buttons */
+  --color-ink: #1b1b1b;
+  --color-ink-hover: #333333;
+
+  /* Single accent — champagne gold. Details only: eyebrows, the wordmark dot,
+     hairlines, active/focus states. Never a button background or large area. */
+  --color-accent: #a8823c;
+  --color-accent-strong: #8a6a2f; /* AA-safe gold for small text on white */
+
+  /* Feedback (used sparingly, kept quiet on white) */
+  --color-success: #2e7d57;
+  --color-danger: #b4453c;
+
+  /* Fonts (CSS variables supplied by next/font in the root layout) */
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
+
+  /* Shared radius & card shadow */
+  --radius: 6px;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Headings use the display serif by default. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}
+
+/* Baseline keyboard focus for interactive elements that don't set their own
+   ring (links, etc.). Components using focus-visible:outline-none keep their
+   custom ring and override this. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Respect users who prefer reduced motion: neutralize transitions/animations
+   (hover scales, control fades, skeleton pulses) rather than jarring them. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Editorial helpers (reusable across all future pages) ---- */
+
+/* Eyebrow label: 11px uppercase, wide tracking, gold. AA-safe on white. */
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--color-accent-strong);
+}
+
+/* Poster title: very large Fraunces, tight leading — the editorial centrepiece. */
+.poster-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2.5rem, 6vw, 4.5rem); /* 40 → 72px */
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  color: var(--color-foreground);
+  /* Long titles must not overflow narrow (375px) screens. */
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Rendered invite content (sanitized HTML from markdown). Quiet, editorial
+   typography — hairlines and whitespace, no boxes. */
+.invite-content {
+  color: var(--color-secondary);
+  line-height: 1.7;
+}
+.invite-content > :first-child {
+  margin-top: 0;
+}
+.invite-content h1,
+.invite-content h2,
+.invite-content h3 {
+  font-family: var(--font-display);
+  color: var(--color-foreground);
+  line-height: 1.15;
+  margin: 1.75rem 0 0.75rem;
+}
+.invite-content h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+.invite-content h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+.invite-content h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.invite-content p {
+  margin: 0 0 1rem;
+}
+.invite-content strong {
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+.invite-content a {
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.invite-content ul,
+.invite-content ol {
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+.invite-content ul {
+  list-style: disc;
+}
+.invite-content ol {
+  list-style: decimal;
+}
+.invite-content li {
+  margin: 0.25rem 0;
+}

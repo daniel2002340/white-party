@@ -223,7 +223,7 @@ Run these as the app user, from `/srv/white-party`.
 
 ```bash
 cd /srv/white-party
-sudo -u whiteparty npm ci
+sudo -u whiteparty npm ci --include=dev   # --include=dev: keep build tooling even if NODE_ENV=production
 sudo -u whiteparty npm run build
 
 # output: "standalone" does NOT include public/ or .next/static — copy them

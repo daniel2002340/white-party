@@ -15,21 +15,17 @@ APP_NAME="${APP_NAME:-white-party}"
 
 cd "$(dirname "$0")"
 
-# Load .env into the environment so the pm2 process (and prisma) see PORT,
-# HOSTNAME, DATABASE_URL, etc. Prisma auto-reads .env, but the standalone
-# server needs them in its actual environment — pm2 captures them below.
-if [ -f .env ]; then
-  set -a
-  # shellcheck disable=SC1091
-  . ./.env
-  set +a
-fi
+# IMPORTANT: do NOT source .env before the build/install steps. If .env sets
+# NODE_ENV=production, `npm ci` would omit devDependencies (the Prisma CLI, tsx,
+# and the build toolchain such as @tailwindcss/postcss), and the build fails.
+# .env is sourced further down, only for the pm2 runtime. Prisma auto-reads
+# .env, so `npm run db:deploy` still finds DATABASE_URL without sourcing.
 
 echo "==> Installing dependencies"
 if [ "${SKIP_INSTALL:-0}" != "1" ]; then
-  # NOTE: do NOT set NODE_ENV=production here — devDependencies (prisma CLI,
-  # tsx, the build toolchain) are needed to build, migrate and seed.
-  npm ci
+  # --include=dev forces devDependencies even if NODE_ENV=production is set in
+  # the environment — they're needed to build, migrate and seed.
+  npm ci --include=dev
 fi
 
 echo "==> Building (Next.js standalone output)"
@@ -49,6 +45,15 @@ echo "==> Applying database migrations"
 npm run db:deploy
 
 if [ "${SKIP_RESTART:-0}" != "1" ]; then
+  # Now (and only now) load .env so pm2 hands the standalone server its runtime
+  # environment (PORT, HOSTNAME, DATABASE_URL, NODE_ENV, SMTP_*, R2_*, ...).
+  if [ -f .env ]; then
+    set -a
+    # shellcheck disable=SC1091
+    . ./.env
+    set +a
+  fi
+
   if pm2 describe "${APP_NAME}" > /dev/null 2>&1; then
     echo "==> Reloading pm2 process: ${APP_NAME}"
     pm2 reload "${APP_NAME}" --update-env

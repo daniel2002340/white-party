@@ -15,13 +15,14 @@ export default async function HomePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-28 sm:py-36">
-      <p className="eyebrow">Privéfeest</p>
+      <p className="eyebrow">Zomer in de Bourgogne</p>
       <h1 className="poster-title mt-5">
         White Party<span className="text-accent">.</span>
       </h1>
       <p className="mt-6 max-w-xl text-lg text-secondary">
-        Een besloten feest voor genodigden. Log in om je uitnodiging te bekijken,
-        je aan te melden en de foto&apos;s van eerdere edities te zien.
+        Lange avonden, goede wijn en een tafel die doorbuigt onder het eten — en
+        iedereen stralend in het wit. We vieren de zomer in stijl. Log in voor je
+        uitnodiging, meld je aan en snuffel door de foto&apos;s van eerdere edities.
       </p>
       <div className="mt-10">
         <Link href="/login" className={buttonClassName()}>

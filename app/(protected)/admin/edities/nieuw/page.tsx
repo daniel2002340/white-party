@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
-import { EditionStatus } from "@/lib/enums";
 import { EditionForm } from "../edition-form";
 
 export const metadata: Metadata = {
@@ -30,8 +29,8 @@ export default async function NewEditionPage() {
           title: "",
           slug: "",
           eventDate: "",
+          dateUnknown: false,
           location: "",
-          status: EditionStatus.DRAFT,
           inviteMarkdown: "",
         }}
       />

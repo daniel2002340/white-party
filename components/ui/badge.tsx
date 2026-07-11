@@ -4,10 +4,10 @@ import type { HTMLAttributes } from "react";
 type Variant = "default" | "accent" | "success" | "danger";
 
 // Badges are quiet, hairline-outlined labels — no filled color blocks.
-// The "accent" variant is the gold eyebrow label (small text uses the AA-safe gold).
+// The "accent" variant is the flag-red eyebrow label (small text uses the AA-safe red).
 const variants: Record<Variant, string> = {
   default: "border border-border text-secondary",
-  accent: "border border-transparent px-0 tracking-[0.2em] text-accent-strong",
+  accent: "border border-transparent px-0 tracking-[0.2em] text-accent-red-strong",
   success: "border border-border text-success",
   danger: "border border-border text-danger",
 };

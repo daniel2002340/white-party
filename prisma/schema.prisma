@@ -43,7 +43,7 @@ model Edition {
   id           String   @id @default(cuid())
   title        String
   slug         String   @unique
-  eventDate    DateTime
+  eventDate    DateTime? // null when the date/time is not yet known
   location     String?
   // Invite content: the admin-authored markdown source (for editing) and the
   // sanitized HTML render (for display). inviteHtml is what guests see.

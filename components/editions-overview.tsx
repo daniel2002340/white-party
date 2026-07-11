@@ -24,14 +24,22 @@ export async function EditionsOverview() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  // Next upcoming = soonest edition with eventDate today or later.
+  // Upcoming = editions today or later, plus those whose date isn't known yet
+  // (date-to-be-announced editions are always upcoming). Undated editions sort
+  // first, then the soonest dated edition.
   const upcoming = editions
-    .filter((e) => e.eventDate.getTime() >= startOfToday.getTime())
-    .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
+    .filter(
+      (e) => e.eventDate === null || e.eventDate.getTime() >= startOfToday.getTime()
+    )
+    .sort((a, b) => {
+      if (a.eventDate === null) return -1;
+      if (b.eventDate === null) return 1;
+      return a.eventDate.getTime() - b.eventDate.getTime();
+    });
   const hero = upcoming[0] ?? null;
 
   const past = editions.filter(
-    (e) => e.eventDate.getTime() < startOfToday.getTime()
+    (e) => e.eventDate !== null && e.eventDate.getTime() < startOfToday.getTime()
   );
 
   // Presign cover thumbnails (server-side) for past editions that have one.
@@ -60,7 +68,7 @@ export async function EditionsOverview() {
           <div className="mt-5">
             <h1 className="poster-title">{hero.title}</h1>
             <p className="mt-5 text-lg text-secondary">
-              {formatLongDateTime(hero.eventDate)}
+              {hero.eventDate ? formatLongDateTime(hero.eventDate) : "Datum volgt"}
               {hero.location ? (
                 <>
                   <span className="mx-2 text-border">·</span>
@@ -91,7 +99,8 @@ export async function EditionsOverview() {
               const coverUrl = edition.coverPhotoId
                 ? (coverUrlById.get(edition.coverPhotoId) ?? null)
                 : null;
-              const year = edition.eventDate.getFullYear();
+              // Past editions always have a date (filtered above).
+              const year = edition.eventDate?.getFullYear();
               return (
                 <Link
                   key={edition.id}

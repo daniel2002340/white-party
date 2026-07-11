@@ -24,17 +24,20 @@ Defined as CSS variables / Tailwind theme tokens in globals.css. Apply everywher
 - Page background: warm white #FAFAF7. Cards/raised surfaces: #FFFFFF with
   1px border #E9E8E3 and a very subtle shadow (0 1px 2px rgba(0,0,0,0.04)).
 - Text: primary #1B1B1B, secondary #5A5A5F, muted #98989D.
-- Single accent: champagne gold #A8823C — used ONLY for eyebrow labels, the
-  wordmark dot, hairline details, active/focus states. Never as a button
-  background, never for large areas.
+- Tricolour accents — the shared red & blue of the French and Dutch flags,
+  used ONLY as details, never as a button background or for large areas:
+  - flag blue #21468B for structural/interactive details — the wordmark dot,
+    hairlines, active/focus states, and links.
+  - flag red #C8102E (AA-safe #A80C25 at small sizes) for typographic labels —
+    eyebrow labels and accent badges.
 - Buttons: primary = solid #1B1B1B with white text (hover #333333);
   secondary = white with 1px #D9D8D2 border. Border-radius 6px.
 - Fonts via next/font/google: Fraunces (500/600/700) for headings and the
   wordmark; Inter for all body/UI text.
-- Header wordmark: "White Party" in Fraunces 600 with a gold period after it.
+- Header wordmark: "White Party" in Fraunces 600 with a flag-blue period after it.
 - Editorial poster feel: edition titles very large (clamp 40–72px) in
   Fraunces, tight line-height (1.05); eyebrow labels 11px uppercase with
-  0.2em letter-spacing in gold; dates/locations small and quiet beneath.
+  0.2em letter-spacing in flag red; dates/locations small and quiet beneath.
 - Prefer hairline rules (1px #E9E8E3) and whitespace as separators over
   boxes-in-boxes. Generous vertical whitespace throughout.
 - Photos (for later prompts): edge-to-edge grid, 4px gaps, no borders or
@@ -44,8 +47,8 @@ Defined as CSS variables / Tailwind theme tokens in globals.css. Apply everywher
   after 1.5s of inactivity.
 - No gradients, no emoji in headings, no decorative illustrations, no gray
   dashboard aesthetics. Restraint and whitespace carry the elegance.
-- Gold as *text* must stay ≥ AA contrast on white; darken toward #8A6A2F
-  if needed at small sizes.
+- Accent colours as *text* must stay ≥ AA contrast on white; use the AA-safe
+  red #A80C25 at small sizes (flag blue #21468B already clears AA).
 
 ## Conventions
 - Server Actions for mutations where natural; route handlers for uploads/downloads.

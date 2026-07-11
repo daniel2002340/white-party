@@ -9,7 +9,7 @@ export function Input({
     <input
       className={cn(
         "h-11 w-full rounded-[var(--radius)] border border-border-strong bg-surface px-3 text-sm text-foreground placeholder:text-muted",
-        // Gold hairline on focus — the accent used only for the active state.
+        // Flag-blue hairline on focus — the accent used only for the active state.
         "transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25",
         className
       )}

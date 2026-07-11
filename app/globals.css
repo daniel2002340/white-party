@@ -2,8 +2,12 @@
 
 /*
  * "White Party" design system — bright, elegant, editorial.
- * Crisp warm white, black ink text, champagne-gold hairline details.
- * Think engraved fashion invitation, not SaaS dashboard.
+ * Crisp warm white, black ink text, tricolour hairline details.
+ * Accents are the shared colours of the French and Dutch flags: flag blue
+ * for structural / interactive details (the wordmark dot, focus rings,
+ * hairlines, active states) and flag red for typographic labels (eyebrows,
+ * accent badges). Restraint holds — accents as details on white, never as
+ * button backgrounds or large fills. Think engraved fashion invitation.
  * Fonts are wired up in app/layout.tsx via next/font (--font-fraunces / --font-inter).
  */
 @theme {
@@ -22,10 +26,15 @@
   --color-ink: #1b1b1b;
   --color-ink-hover: #333333;
 
-  /* Single accent — champagne gold. Details only: eyebrows, the wordmark dot,
-     hairlines, active/focus states. Never a button background or large area. */
-  --color-accent: #a8823c;
-  --color-accent-strong: #8a6a2f; /* AA-safe gold for small text on white */
+  /* Tricolour accents — the shared red & blue of the French and Dutch flags.
+     Details only: never a button background or large area. Both stay ≥ AA on
+     white at small sizes.
+     Blue = structural / interactive (wordmark dot, focus rings, hairlines,
+     active states). Red = typographic labels (eyebrows, accent badges). */
+  --color-accent: #21468b; /* flag blue — generic/structural accent, AA-safe as text */
+  --color-accent-strong: #21468b; /* AA-safe blue for small text on white (links) */
+  --color-accent-red: #c8102e; /* flag red */
+  --color-accent-red-strong: #a80c25; /* AA-safe red for small text on white */
 
   /* Feedback (used sparingly, kept quiet on white) */
   --color-success: #2e7d57;
@@ -82,7 +91,7 @@ h3 {
 
 /* ---- Editorial helpers (reusable across all future pages) ---- */
 
-/* Eyebrow label: 11px uppercase, wide tracking, gold. AA-safe on white. */
+/* Eyebrow label: 11px uppercase, wide tracking, flag red. AA-safe on white. */
 .eyebrow {
   font-family: var(--font-sans);
   font-size: 11px;
@@ -90,7 +99,7 @@ h3 {
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.2em;
-  color: var(--color-accent-strong);
+  color: var(--color-accent-red-strong);
 }
 
 /* Poster title: very large Fraunces, tight leading — the editorial centrepiece. */

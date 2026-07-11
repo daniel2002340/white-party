@@ -43,9 +43,12 @@ export default async function EditionDetailPage({
   // Guests can only see published editions; drafts/archived are 404 for them.
   if (!isPublished && !isAdmin) notFound();
 
-  // RSVP is available only for a published edition that is still upcoming.
+  // RSVP is available for a published edition that is still upcoming — which
+  // includes editions whose date isn't known yet.
   const rsvpOpen =
-    isPublished && edition.eventDate.getTime() > new Date().getTime();
+    isPublished &&
+    (edition.eventDate === null ||
+      edition.eventDate.getTime() > new Date().getTime());
   const existingRsvp = rsvpOpen
     ? await prisma.rsvp.findUnique({
         where: { userId_editionId: { userId: user.id, editionId: edition.id } },
@@ -123,7 +126,7 @@ export default async function EditionDetailPage({
         <h1 className="poster-title mt-5">{edition.title}</h1>
 
         <p className="mt-5 text-lg text-secondary">
-          {formatLongDateTime(edition.eventDate)}
+          {edition.eventDate ? formatLongDateTime(edition.eventDate) : "Datum volgt"}
           {edition.location ? (
             <>
               <span className="mx-2 text-border">·</span>

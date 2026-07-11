@@ -66,7 +66,9 @@ export default async function AdminEditionsPage() {
                   </Badge>
                 </div>
                 <div className="mt-0.5 text-sm text-secondary">
-                  {formatShortDate(edition.eventDate)}
+                  {edition.eventDate
+                    ? formatShortDate(edition.eventDate)
+                    : "Datum volgt"}
                   {edition.location ? ` · ${edition.location}` : ""}
                 </div>
               </div>

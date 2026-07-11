@@ -12,29 +12,35 @@ import { EditionStatus } from "@/lib/enums";
 
 const LIST_PATH = "/admin/edities";
 
-const EditionSchema = z.object({
-  title: z.string().trim().min(1, "Titel is verplicht."),
-  slug: z
-    .string()
-    .transform((value) => slugify(value))
-    .refine((value) => value.length > 0, "Voer een geldige slug in."),
-  eventDate: z
-    .string()
-    .min(1, "Datum en tijd zijn verplicht.")
-    .refine((value) => !Number.isNaN(new Date(value).getTime()), {
-      message: "Voer een geldige datum en tijd in.",
-    }),
-  location: z
-    .string()
-    .trim()
-    .transform((value) => (value.length > 0 ? value : null)),
-  status: z.enum([
-    EditionStatus.DRAFT,
-    EditionStatus.PUBLISHED,
-    EditionStatus.ARCHIVED,
-  ]),
-  inviteMarkdown: z.string(),
-});
+const EditionSchema = z
+  .object({
+    title: z.string().trim().min(1, "Titel is verplicht."),
+    slug: z
+      .string()
+      .transform((value) => slugify(value))
+      .refine((value) => value.length > 0, "Voer een geldige slug in."),
+    // Empty when the date is not yet known (dateUnknown checked).
+    eventDate: z.string(),
+    dateUnknown: z.boolean(),
+    location: z
+      .string()
+      .trim()
+      .transform((value) => (value.length > 0 ? value : null)),
+    inviteMarkdown: z.string(),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      !value.dateUnknown &&
+      (value.eventDate.length === 0 ||
+        Number.isNaN(new Date(value.eventDate).getTime()))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["eventDate"],
+        message: "Voer een geldige datum en tijd in.",
+      });
+    }
+  });
 
 export type EditionFormState = { error: string | null };
 
@@ -49,16 +55,16 @@ export async function saveEdition(
   const parsed = EditionSchema.safeParse({
     title: formData.get("title"),
     slug: formData.get("slug"),
-    eventDate: formData.get("eventDate"),
+    eventDate: formData.get("eventDate") ?? "",
+    dateUnknown: formData.get("dateUnknown") === "on",
     location: formData.get("location") ?? "",
-    status: formData.get("status"),
     inviteMarkdown: formData.get("inviteMarkdown") ?? "",
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Ongeldige invoer." };
   }
 
-  const { title, slug, eventDate, location, status, inviteMarkdown } =
+  const { title, slug, eventDate, dateUnknown, location, inviteMarkdown } =
     parsed.data;
   const trimmedMarkdown = inviteMarkdown.trim();
   const inviteHtml = trimmedMarkdown ? renderInviteHtml(trimmedMarkdown) : null;
@@ -66,18 +72,21 @@ export async function saveEdition(
   const data = {
     title,
     slug,
-    eventDate: new Date(eventDate),
+    eventDate: dateUnknown ? null : new Date(eventDate),
     location,
-    status,
     inviteMarkdown: trimmedMarkdown || null,
     inviteHtml,
   };
 
   try {
     if (id) {
+      // Status is managed elsewhere; editing never changes it.
       await prisma.edition.update({ where: { id }, data });
     } else {
-      await prisma.edition.create({ data });
+      // New editions are always published.
+      await prisma.edition.create({
+        data: { ...data, status: EditionStatus.PUBLISHED },
+      });
     }
   } catch (error) {
     if (

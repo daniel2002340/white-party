@@ -5,13 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { slugify } from "@/lib/slug";
-import { EditionStatus, editionStatusLabel } from "@/lib/enums";
 import { saveEdition, type EditionFormState } from "./actions";
 
 const initialState: EditionFormState = { error: null };
-
-const selectClass =
-  "h-11 w-full rounded-[var(--radius)] border border-border-strong bg-surface px-3 text-sm text-foreground transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25";
 
 const textareaClass =
   "w-full rounded-[var(--radius)] border border-border-strong bg-surface px-3 py-2.5 text-sm text-foreground placeholder:text-muted transition-colors focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25";
@@ -20,9 +16,9 @@ export type EditionFormDefaults = {
   id?: string;
   title: string;
   slug: string;
-  eventDate: string; // datetime-local value
+  eventDate: string; // datetime-local value; "" when the date is not yet known
+  dateUnknown: boolean;
   location: string;
-  status: string;
   inviteMarkdown: string;
 };
 
@@ -31,12 +27,15 @@ export function EditionForm({ defaults }: { defaults: EditionFormDefaults }) {
 
   const [title, setTitle] = useState(defaults.title);
   const [slug, setSlug] = useState(defaults.slug);
-  // Once a slug exists (editing) or the admin edits it, stop auto-generating.
-  const [slugEdited, setSlugEdited] = useState(Boolean(defaults.slug));
+  const [dateUnknown, setDateUnknown] = useState(defaults.dateUnknown);
+
+  // New editions auto-generate the slug from the title. When editing, an
+  // existing slug is kept fixed so the edition's URL never changes.
+  const slugLocked = Boolean(defaults.slug);
 
   function onTitleChange(value: string) {
     setTitle(value);
-    if (!slugEdited) setSlug(slugify(value));
+    if (!slugLocked) setSlug(slugify(value));
   }
 
   const isEdit = Boolean(defaults.id);
@@ -44,6 +43,8 @@ export function EditionForm({ defaults }: { defaults: EditionFormDefaults }) {
   return (
     <form action={formAction} className="mt-8 space-y-5">
       {defaults.id ? <input type="hidden" name="id" value={defaults.id} /> : null}
+      {/* Slug is derived from the title automatically and never shown/edited. */}
+      <input type="hidden" name="slug" value={slug} />
 
       <div>
         <Label htmlFor="title">Titel</Label>
@@ -58,33 +59,26 @@ export function EditionForm({ defaults }: { defaults: EditionFormDefaults }) {
       </div>
 
       <div>
-        <Label htmlFor="slug">Slug</Label>
-        <Input
-          id="slug"
-          name="slug"
-          type="text"
-          value={slug}
-          onChange={(e) => {
-            setSlug(e.target.value);
-            setSlugEdited(true);
-          }}
-          onBlur={(e) => setSlug(slugify(e.target.value))}
-          required
-        />
-        <p className="mt-1.5 text-xs text-muted">
-          De URL wordt /edities/{slug || "…"}
-        </p>
-      </div>
-
-      <div>
         <Label htmlFor="eventDate">Datum en tijd</Label>
         <Input
           id="eventDate"
           name="eventDate"
           type="datetime-local"
           defaultValue={defaults.eventDate}
-          required
+          required={!dateUnknown}
+          disabled={dateUnknown}
+          className={dateUnknown ? "opacity-50" : undefined}
         />
+        <label className="mt-2 flex items-center gap-2 text-sm text-secondary">
+          <input
+            type="checkbox"
+            name="dateUnknown"
+            checked={dateUnknown}
+            onChange={(e) => setDateUnknown(e.target.checked)}
+            className="accent-[var(--color-accent)]"
+          />
+          Datum en tijd nog niet bekend
+        </label>
       </div>
 
       <div>
@@ -99,33 +93,13 @@ export function EditionForm({ defaults }: { defaults: EditionFormDefaults }) {
       </div>
 
       <div>
-        <Label htmlFor="status">Status</Label>
-        <select
-          id="status"
-          name="status"
-          defaultValue={defaults.status}
-          className={selectClass}
-        >
-          <option value={EditionStatus.DRAFT}>
-            {editionStatusLabel[EditionStatus.DRAFT]}
-          </option>
-          <option value={EditionStatus.PUBLISHED}>
-            {editionStatusLabel[EditionStatus.PUBLISHED]}
-          </option>
-          <option value={EditionStatus.ARCHIVED}>
-            {editionStatusLabel[EditionStatus.ARCHIVED]}
-          </option>
-        </select>
-      </div>
-
-      <div>
         <Label htmlFor="inviteMarkdown">Uitnodiging</Label>
         <textarea
           id="inviteMarkdown"
           name="inviteMarkdown"
           rows={10}
           defaultValue={defaults.inviteMarkdown}
-          placeholder={"## Welkom\n\nDetails over de avond…"}
+          placeholder="Details over de avond…"
           className={textareaClass}
         />
         <p className="mt-1.5 text-xs text-muted">

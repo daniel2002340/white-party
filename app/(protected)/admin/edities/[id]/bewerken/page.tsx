@@ -87,9 +87,11 @@ export default async function EditEditionPage({
           id: edition.id,
           title: edition.title,
           slug: edition.slug,
-          eventDate: toDatetimeLocalValue(edition.eventDate),
+          eventDate: edition.eventDate
+            ? toDatetimeLocalValue(edition.eventDate)
+            : "",
+          dateUnknown: edition.eventDate === null,
           location: edition.location ?? "",
-          status: edition.status,
           inviteMarkdown: edition.inviteMarkdown ?? "",
         }}
       />

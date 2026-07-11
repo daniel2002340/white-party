@@ -50,7 +50,7 @@ function renderLayout(content: string): string {
             </tr>
             <tr>
               <td style="padding:16px 4px 0 4px;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#98989D;">
-                ${SITE_NAME} — alleen op uitnodiging.
+                ${SITE_NAME}
               </td>
             </tr>
           </table>
@@ -160,7 +160,7 @@ function escapeHtml(input: string): string {
 export type InviteEdition = {
   title: string;
   slug: string;
-  eventDate: Date;
+  eventDate: Date | null;
   location: string | null;
   inviteHtml: string | null;
 };
@@ -198,7 +198,9 @@ export function invitePreviewParagraphs(
 export function buildInviteEmail(edition: InviteEdition) {
   const appUrl = (process.env.APP_URL || "http://localhost:3000").replace(/\/$/, "");
   const url = `${appUrl}/edities/${edition.slug}`;
-  const dateText = formatLongDateTime(edition.eventDate);
+  const dateText = edition.eventDate
+    ? formatLongDateTime(edition.eventDate)
+    : "Datum volgt";
   const paragraphs = invitePreviewParagraphs(edition.inviteHtml);
   const subject = `Uitnodiging: ${edition.title}`;
 

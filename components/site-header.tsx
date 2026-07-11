@@ -55,7 +55,7 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
   return (
     <header className="border-b border-border">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-        {/* Wordmark: Fraunces 600 with a gold period after it. */}
+        {/* Wordmark: Fraunces 600 with a flag-blue period after it. */}
         <Link
           href="/"
           onClick={() => setOpen(false)}

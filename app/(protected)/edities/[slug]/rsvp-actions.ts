@@ -57,7 +57,7 @@ export async function submitRsvp(
   if (
     !edition ||
     edition.status !== EditionStatus.PUBLISHED ||
-    edition.eventDate.getTime() <= Date.now()
+    (edition.eventDate !== null && edition.eventDate.getTime() <= Date.now())
   ) {
     return { ok: false, error: "Aanmelden is niet meer mogelijk.", rsvp: null };
   }

@@ -2,7 +2,7 @@ import "server-only";
 import nodemailer, { type Transporter } from "nodemailer";
 import { formatLongDateTime } from "@/lib/dates";
 
-const SITE_NAME = "White Party";
+const SITE_NAME = "Midsummer Party";
 
 export type MailInput = {
   to: string;
@@ -25,6 +25,12 @@ function getTransport(): Transporter | null {
     port,
     secure: port === 465, // implicit TLS on 465, STARTTLS otherwise
     auth: user ? { user, pass } : undefined,
+    // Fail fast when the host is unreachable. Hosting providers commonly drop
+    // outbound SMTP packets silently (Hetzner blocks 25 and 465 by default),
+    // which otherwise stalls the request on nodemailer's ~2 minute default.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
   });
 }
 
@@ -40,7 +46,7 @@ function renderLayout(content: string): string {
           <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="width:480px;max-width:480px;">
             <tr>
               <td style="padding:0 4px 20px 4px;font-family:Arial,Helvetica,sans-serif;">
-                <span style="font-size:20px;font-weight:700;color:#1B1B1B;">${SITE_NAME}<span style="color:#A8823C;">.</span></span>
+                <span style="font-size:20px;font-weight:700;color:#1B1B1B;">${SITE_NAME}<span style="color:#21468B;">.</span></span>
               </td>
             </tr>
             <tr>
@@ -136,7 +142,7 @@ export async function sendAccountEmail(params: {
     <p style="margin:0 0 20px 0;">
       <a href="${loginUrl}" style="display:inline-block;background-color:#1B1B1B;color:#FFFFFF;text-decoration:none;font-size:14px;font-weight:600;padding:11px 20px;border-radius:6px;">Inloggen</a>
     </p>
-    <p style="margin:0;color:#5A5A5F;font-size:14px;">Bij je eerste keer inloggen vragen we je om zelf een nieuw wachtwoord in te stellen. Inloggen kan ook via <a href="${loginUrl}" style="color:#8A6A2F;">${loginUrl}</a>.</p>
+    <p style="margin:0;color:#5A5A5F;font-size:14px;">Bij je eerste keer inloggen vragen we je om zelf een nieuw wachtwoord in te stellen. Inloggen kan ook via <a href="${loginUrl}" style="color:#21468B;">${loginUrl}</a>.</p>
   `;
 
   await sendMail({

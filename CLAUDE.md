@@ -9,7 +9,7 @@ A private website for a recurring party called "White Party" (dresscode: wit). G
 - Image processing: sharp (runs on the server, Node runtime — never edge runtime)
 - Email: nodemailer over plain SMTP (host/port/user/pass from env)
 - Auth: hand-rolled session cookies (httpOnly, secure, sameSite=lax), passwords hashed with argon2. No NextAuth/Auth.js.
-- Deployment target: a Linux VPS running Node with `next start`, behind a reverse proxy. Use `output: "standalone"` in next.config.
+- Deployment target: a Linux VPS running Node with `next start`, behind a reverse proxy. Do NOT set `output: "standalone"` — Next refuses to combine it with `next start`, and the host panel (xCloud) regenerates a pm2 config that runs `npm run start`.
 - All UI text is in Dutch. All code, comments, and identifiers in English.
 - Keep dependencies minimal. No component libraries; plain Tailwind. No client state library; use React state + server components.
 

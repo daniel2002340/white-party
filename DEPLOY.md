@@ -1,8 +1,14 @@
 # Deploying White Party to a Linux VPS
 
 This guide takes a **fresh Ubuntu/Debian VPS** to a running, HTTPS site. The app
-is a Next.js standalone server (`node .next/standalone/server.js`) managed by
-**pm2**, behind a reverse proxy (Caddy or nginx) that terminates TLS.
+is a Next.js server (`next start`, i.e. `npm run start`) managed by **pm2**,
+behind a reverse proxy (Caddy or nginx) that terminates TLS.
+
+> **Do not set `output: "standalone"` in `next.config.ts`.** Next refuses to
+> combine it with `next start`, and the standalone bundle additionally needs
+> `.next/static` copied in beside `server.js` plus an explicit pm2 `--cwd` —
+> both of which a host control panel will undo when it regenerates its process
+> config.
 
 Conventions used below (adjust to taste, but keep them consistent everywhere):
 
@@ -148,16 +154,23 @@ sudo -u whiteparty mkdir -p data backups
 sudo -u whiteparty nano .env    # fill in the values below
 ```
 
-Fill in `/srv/white-party/.env`. `deploy.sh` **sources** this file (so pm2 picks
-up `PORT`/`DATABASE_URL`/etc.), so **quote any value that contains a space or
-shell metacharacters** — in practice that's `SMTP_FROM`. Values without spaces
-(paths, keys, URLs) can be left unquoted.
+Fill in `/srv/white-party/.env`. Next loads this file itself at startup;
+`deploy.sh` deliberately does **not** source it.
+
+> **Escaping.** Next expands `$VAR` references when it loads `.env`, so a
+> literal `$` in a value must be written `\$` — otherwise it is silently
+> replaced with an empty string. Single quotes do **not** prevent this. Some
+> host panels (xCloud) additionally *shell-source* `.env` into the process
+> environment, where an unescaped backtick would **execute as a command**;
+> write it `` \` ``. Quote any value containing a space (in practice
+> `SMTP_FROM`). See §13 for how this shows up: SMTP `535`, or a truncated
+> password.
 
 ```ini
 # Absolute path — see the note below. Prefix with file:
 DATABASE_URL=file:/srv/white-party/data/app.db
 
-# Port/host the standalone server listens on (reverse proxy targets this).
+# Port/host the server listens on (reverse proxy targets this).
 PORT=6353
 HOSTNAME=127.0.0.1
 
@@ -188,13 +201,20 @@ SEED_ADMIN_PASSWORD=<a strong initial password>
 Notes on individual variables:
 
 - **`DATABASE_URL` must be an absolute `file:` path in production.** Relative
-  SQLite paths resolve relative to `schema.prisma`, which in the standalone
-  build lives deep under `node_modules/.prisma/client/`. An absolute path makes
-  the Prisma CLI (migrate/seed) and the running server agree on the same file.
-- **`PORT` / `HOSTNAME`** — the standalone server reads these from its
-  environment. `HOSTNAME=127.0.0.1` binds it to localhost so only the reverse
-  proxy can reach it. Change `PORT` to whatever your proxy targets (this guide
-  uses `6353`).
+  SQLite paths resolve relative to wherever Prisma finds `schema.prisma`, which
+  differs between the Prisma CLI and the running server. Getting this wrong
+  gives `Error code 14: Unable to open the database file`. An absolute path
+  makes migrate/seed and the server agree on one file.
+- **`PORT` / `HOSTNAME`** — `next start` reads these from its environment.
+  `HOSTNAME=127.0.0.1` binds it to localhost so only the reverse proxy can
+  reach it. Change `PORT` to whatever your proxy targets (this guide uses
+  `6353`).
+
+  > The variable is `HOSTNAME`, **not** `HOST` — Next ignores `HOST`. Some host
+  > panels export `HOST=127.0.0.1`, which does nothing: the app then binds
+  > `0.0.0.0` and is reachable directly on its port, bypassing the proxy and its
+  > TLS. Check with `ss -ltnp | grep <port>`; you want `127.0.0.1:<port>`, not
+  > `0.0.0.0:<port>`. Set `HOSTNAME` in `.env` to be sure.
 - **`SESSION_SECRET`** — generate with `openssl rand -base64 32`. (Sessions
   currently use random tokens stored in the database, so this value isn't read
   by the app yet; it's documented in `.env.example` and set as a defensive
@@ -226,20 +246,13 @@ cd /srv/white-party
 sudo -u whiteparty npm ci --include=dev   # --include=dev: keep build tooling even if NODE_ENV=production
 sudo -u whiteparty npm run build
 
-# output: "standalone" does NOT include public/ or .next/static — copy them
-# into the bundle so the standalone server can serve them:
-sudo -u whiteparty cp -r public .next/standalone/public
-sudo -u whiteparty mkdir -p .next/standalone/.next/static
-sudo -u whiteparty cp -r .next/static .next/standalone/.next/static
-
 # create the schema and the initial admin
 sudo -u whiteparty npm run db:deploy   # applies prisma/migrations
 sudo -u whiteparty npm run db:seed     # creates the admin from SEED_ADMIN_*
 ```
 
-The build + static-copy + migrate steps are also wrapped in `deploy.sh` (§9), so
-after the first run you can just use that. The static copy is easy to forget —
-without it the site loads unstyled (missing CSS/JS).
+The build + migrate steps are also wrapped in `deploy.sh` (§9), so after the
+first run you can just use that.
 
 ---
 
@@ -254,11 +267,12 @@ the normal flow is just to run it. To start it manually the first time:
 
 ```bash
 cd /srv/white-party
-# Load .env so the process gets PORT, HOSTNAME, DATABASE_URL, etc.
-set -a; . ./.env; set +a
 export NODE_ENV=production
 
-pm2 start .next/standalone/server.js --name white-party --update-env
+# Next reads .env itself from the working directory — do NOT `. ./.env` here.
+# Sourcing it bakes a copy into pm2's saved environment, and process.env then
+# wins over .env forever after, so later edits to the file appear to do nothing.
+pm2 start npm --name white-party --cwd /srv/white-party -- run start
 pm2 save            # remember this process list across reboots
 pm2 startup         # prints ONE sudo command — copy/paste and run it
 ```
@@ -349,8 +363,8 @@ sudo certbot --nginx -d feest.example.nl   # issues the cert + adds the 443 bloc
 
 ## 9. The deploy script
 
-`deploy.sh` (in the repo root) runs install → build → static-copy → migrate →
-pm2 (re)start. Run it **as the app user** (it uses that user's pm2):
+`deploy.sh` (in the repo root) runs install → build → migrate → pm2 (re)start.
+Run it **as the app user** (it uses that user's pm2):
 
 ```bash
 sudo -iu whiteparty
@@ -358,9 +372,11 @@ cd /srv/white-party
 ./deploy.sh
 ```
 
-It sources `.env`, then starts the pm2 process on the first run and
-`pm2 reload`s it (zero-downtime) on subsequent runs, and calls `pm2 save`. No
-sudo/systemctl needed — pm2 runs entirely under the app user.
+It starts the pm2 process on the first run and `pm2 reload`s it (zero-downtime)
+on subsequent runs, then calls `pm2 save`. No sudo/systemctl needed — pm2 runs
+entirely under the app user. If an `ecosystem.config.cjs` is present (host
+panels such as xCloud generate one and own the process definition) it starts
+from that instead.
 
 (Run `./deploy.sh` with `SKIP_RESTART=1` to build without touching the running
 process. Override the pm2 app name with `APP_NAME=... ./deploy.sh`.)
@@ -417,7 +433,7 @@ provider) so a lost VPS doesn't lose the database.
 sudo -iu whiteparty
 cd /srv/white-party
 git pull
-./deploy.sh      # npm ci, build, static copy, migrate, pm2 reload
+./deploy.sh      # npm ci, build, migrate, pm2 reload
 ```
 
 `./deploy.sh` runs `npm run db:deploy` (applies any new migrations; a no-op if
@@ -432,9 +448,11 @@ curl -s https://feest.example.nl/api/health
 
 ## 13. Troubleshooting
 
-- **Site loads unstyled / 404s on `/_next/static/...`** — the static copy step
-  was skipped. Re-run `./deploy.sh` (or the `cp -r .next/static ...` +
-  `cp -r public ...` commands) and restart.
+- **Site loads unstyled / 404s on `/_next/static/...`** — almost always
+  `output: "standalone"` having crept back into `next.config.ts` while the
+  process runs `next start`. Remove it and rebuild. (The standalone bundle
+  excludes `.next/static`, so it must be copied in beside `server.js` — which
+  is exactly the fragility this project avoids by not using standalone.)
 - **`Cannot find module` for sharp / Prisma engine, or a native crash on
   start** — the build was produced on the wrong platform. Rebuild **on the VPS**
   (`sudo -u whiteparty ./deploy.sh`); don't copy `node_modules`/`.next` from
@@ -450,12 +468,33 @@ curl -s https://feest.example.nl/api/health
 - **Emails not arriving** — verify SMTP vars; check `pm2 logs white-party` for
   send errors. The admin "create user" flow shows the temporary password
   on-screen when a send fails, as a fallback.
-- **Env var not picked up** — pm2 caches the environment from when the process
-  was started. After editing `.env`, re-run `./deploy.sh` (it re-sources `.env`
-  and reloads with `--update-env`), or manually:
-  `set -a; . ./.env; set +a; pm2 restart white-party --update-env`. Also make
-  sure values with spaces (e.g. `SMTP_FROM`) are **quoted**, since `deploy.sh`
-  sources the file.
+- **Env var not picked up / edits to `.env` appear to do nothing** — Next looks
+  up `process.env` **before** `.env`, so any copy already in the process
+  environment wins permanently. If `.env` was ever shell-sourced before `pm2
+  start`, that stale copy is saved in pm2's dump and re-injected on every
+  restart. `--update-env` only refreshes from your *current shell*; it does not
+  clear a stale entry. Check what the process actually holds, then rebuild it:
+
+  ```bash
+  pm2 env 0 | grep '^SMTP_PASS='          # empty is GOOD: means .env is the only source
+  pm2 delete white-party
+  cd /srv/white-party && ./deploy.sh
+  ```
+
+- **SMTP fails with `535 ... wrong user/password` but the password is right** —
+  an unescaped `$` in `SMTP_PASS`. Next expanded it away, so a shorter string
+  was sent. Write it `\$` (see §5) and restart. To confirm without printing the
+  secret, compare lengths:
+
+  ```bash
+  node -e 'require(require.resolve("@next/env",{paths:[process.cwd()]})).loadEnvConfig(process.cwd());console.log(process.env.SMTP_PASS.length)'
+  ```
+
+- **SMTP fails with `ETIMEDOUT` / `command: 'CONN'`** — a blocked outbound port,
+  not a credentials problem. Most providers block 25 and 465 by default
+  (Hetzner unblocks only after ~30 days and a support request); **587 is
+  normally open**. Test with
+  `timeout 8 bash -c "cat </dev/null >/dev/tcp/$SMTP_HOST/587"`.
 - **`pm2: command not found` in `deploy.sh` / cron** — pm2 is a global npm
   binary; ensure it's on the app user's `PATH` (installed with the same Node,
   `sudo -iu whiteparty` for a login shell). After a reboot, `pm2 status` should

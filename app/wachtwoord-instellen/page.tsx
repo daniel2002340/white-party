@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { SetPasswordForm } from "./set-password-form";
 
 export const metadata: Metadata = {
-  title: "Wachtwoord instellen — White Party",
+  title: "Wachtwoord instellen — Midsummer Party",
 };
 
 // Centered invitation card for setting a new password. Requires a logged-in
@@ -19,7 +19,7 @@ export default async function SetPasswordPage() {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-16">
       <Card>
-        <p className="eyebrow text-center">White Party</p>
+        <p className="eyebrow text-center">Midsummer Party</p>
         <h1 className="mt-3 text-center font-display text-3xl font-semibold text-foreground">
           Kies je wachtwoord
         </h1>

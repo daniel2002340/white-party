@@ -17,7 +17,7 @@ export default async function HomePage() {
     <div className="mx-auto max-w-3xl px-6 py-28 sm:py-36">
       <p className="eyebrow">Zomer in de Bourgogne</p>
       <h1 className="poster-title mt-5">
-        White Party<span className="text-accent">.</span>
+        Midsummer Party<span className="text-accent">.</span>
       </h1>
       <p className="mt-6 max-w-xl text-lg text-secondary">
         Lange avonden, goede wijn en een tafel die doorbuigt onder het eten — en

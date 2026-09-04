@@ -5,7 +5,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
-  title: "Inloggen — White Party",
+  title: "Inloggen — Midsummer Party",
 };
 
 // Centered invitation card. Already-authenticated users skip the form.
@@ -18,7 +18,7 @@ export default async function LoginPage() {
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-16">
       <Card>
-        <p className="eyebrow text-center">White Party</p>
+        <p className="eyebrow text-center">Midsummer Party</p>
         <h1 className="mt-3 text-center font-display text-3xl font-semibold text-foreground">
           Welkom
         </h1>

@@ -9,7 +9,7 @@ import { EditionStatus, editionStatusLabel } from "@/lib/enums";
 import { EditionRowActions } from "./edition-row-actions";
 
 export const metadata: Metadata = {
-  title: "Edities — White Party",
+  title: "Edities — Midsummer Party",
 };
 
 function statusBadgeVariant(

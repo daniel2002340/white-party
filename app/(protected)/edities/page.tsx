@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { EditionsOverview } from "@/components/editions-overview";
 
 export const metadata: Metadata = {
-  title: "Edities — White Party",
+  title: "Edities — Midsummer Party",
 };
 
 // Same overview as the home page, reachable via the header "Edities" link.

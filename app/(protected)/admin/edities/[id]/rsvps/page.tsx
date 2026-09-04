@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { loadRsvpRows, summarize, type RsvpRow } from "./data";
 
 export const metadata: Metadata = {
-  title: "RSVP's — White Party",
+  title: "RSVP's — Midsummer Party",
 };
 
 const FILTERS = [

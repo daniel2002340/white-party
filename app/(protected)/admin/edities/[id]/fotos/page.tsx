@@ -9,7 +9,7 @@ import { PhotoUploader } from "./photo-uploader";
 import { PhotoGrid, type GridPhoto } from "./photo-grid";
 
 export const metadata: Metadata = {
-  title: "Foto's — White Party",
+  title: "Foto's — Midsummer Party",
 };
 
 export default async function EditionPhotosPage({

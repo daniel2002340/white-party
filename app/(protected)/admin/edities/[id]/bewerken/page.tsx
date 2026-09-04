@@ -10,7 +10,7 @@ import { EditionForm } from "../../edition-form";
 import { InviteSender } from "../invite-sender";
 
 export const metadata: Metadata = {
-  title: "Editie bewerken — White Party",
+  title: "Editie bewerken — Midsummer Party",
 };
 
 const sentFormatter = new Intl.DateTimeFormat("nl-NL", {

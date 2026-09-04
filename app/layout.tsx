@@ -19,8 +19,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "White Party",
-  description: "Privéwebsite voor de White Party — uitnodiging, RSVP en fotogalerijen.",
+  title: "Midsummer Party",
+  description: "Privéwebsite voor de Midsummer Party — uitnodiging, RSVP en fotogalerijen.",
 };
 
 export default async function RootLayout({

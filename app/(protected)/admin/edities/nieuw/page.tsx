@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { EditionForm } from "../edition-form";
 
 export const metadata: Metadata = {
-  title: "Nieuwe editie — White Party",
+  title: "Nieuwe editie — Midsummer Party",
 };
 
 export default async function NewEditionPage() {

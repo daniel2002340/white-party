@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
-  title: "Admin — White Party",
+  title: "Admin — Midsummer Party",
 };
 
 export default async function AdminPage() {

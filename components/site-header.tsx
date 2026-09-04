@@ -61,7 +61,7 @@ export function SiteHeader({ user }: { user: SessionUser | null }) {
           onClick={() => setOpen(false)}
           className="font-display text-xl font-semibold tracking-tight text-foreground"
         >
-          White Party<span className="text-accent">.</span>
+          Midsummer Party<span className="text-accent">.</span>
         </Link>
 
         {user ? (

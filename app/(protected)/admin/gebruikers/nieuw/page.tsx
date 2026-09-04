@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { NewUserForm } from "./new-user-form";
 
 export const metadata: Metadata = {
-  title: "Nieuwe gebruiker — White Party",
+  title: "Nieuwe gebruiker — Midsummer Party",
 };
 
 export default async function NewUserPage() {

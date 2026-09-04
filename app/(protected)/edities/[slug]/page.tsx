@@ -23,7 +23,7 @@ export async function generateMetadata({
     where: { slug },
     select: { title: true },
   });
-  return { title: edition ? `${edition.title} — White Party` : "White Party" };
+  return { title: edition ? `${edition.title} — Midsummer Party` : "Midsummer Party" };
 }
 
 export default async function EditionDetailPage({
@@ -122,7 +122,7 @@ export default async function EditionDetailPage({
           </div>
         ) : null}
 
-        <p className="eyebrow">White Party</p>
+        <p className="eyebrow">Midsummer Party</p>
         <h1 className="poster-title mt-5">{edition.title}</h1>
 
         <p className="mt-5 text-lg text-secondary">

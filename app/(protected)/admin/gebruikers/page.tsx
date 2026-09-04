@@ -8,7 +8,7 @@ import { roleLabel, UserRole } from "@/lib/enums";
 import { UserRowActions } from "./user-row-actions";
 
 export const metadata: Metadata = {
-  title: "Gebruikers — White Party",
+  title: "Gebruikers — Midsummer Party",
 };
 
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {

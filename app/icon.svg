@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Midsummer Party</title>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12" fill="#FAFAF7" stroke="#E9E8E3"/>
+  <g fill="#1B1B1B">
+    <rect x="11.2" y="15" width="4.4" height="34"/>
+    <rect x="38.4" y="15" width="4.4" height="34"/>
+    <polygon points="11.2,15 18.8,15 27.6,49 25.1,49"/>
+    <polygon points="37.6,15 42.8,15 27.2,49 25.6,49"/>
+    <rect x="8.2" y="15" width="10.4" height="2.2"/>
+    <rect x="35.4" y="15" width="10.4" height="2.2"/>
+    <rect x="7.6" y="46.8" width="11.6" height="2.2"/>
+    <rect x="34.8" y="46.8" width="11.6" height="2.2"/>
+  </g>
+  <circle cx="51" cy="46.68" r="4.4" fill="#21468B"/>
+</svg>
